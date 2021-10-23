@@ -19,6 +19,12 @@ pub enum Operator {
     Subtract,
     Multiply,
     Divide,
+    LessThan,
+    LessOrEqual,
+    GreaterThan,
+    GreaterOrEqual,
+    EqualEqual,
+    NotEqual,
 }
 
 pub fn add(lhs: Expression, rhs: Expression) -> Expression {
@@ -48,6 +54,54 @@ pub fn multiply(lhs: Expression, rhs: Expression) -> Expression {
 pub fn divide(lhs: Expression, rhs: Expression) -> Expression {
     Expression::BinaryExpression {
         operator: Operator::Divide,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn lt(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::LessThan,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn le(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::LessOrEqual,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn gt(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::GreaterThan,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn ge(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::GreaterOrEqual,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn eq(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::EqualEqual,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
+}
+
+pub fn neq(lhs: Expression, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: Operator::NotEqual,
         lhs: Box::new(lhs),
         rhs: Box::new(rhs),
     }

@@ -57,6 +57,24 @@ impl Interpreter {
                 crate::ast::Operator::Subtract => self.interpret(*lhs) - self.interpret(*rhs),
                 crate::ast::Operator::Multiply => self.interpret(*lhs) * self.interpret(*rhs),
                 crate::ast::Operator::Divide => self.interpret(*lhs) / self.interpret(*rhs),
+                crate::ast::Operator::LessThan => {
+                    bool_to_int(self.interpret(*lhs) < self.interpret(*rhs))
+                }
+                crate::ast::Operator::LessOrEqual => {
+                    bool_to_int(self.interpret(*lhs) <= self.interpret(*rhs))
+                }
+                crate::ast::Operator::GreaterThan => {
+                    bool_to_int(self.interpret(*lhs) > self.interpret(*rhs))
+                }
+                crate::ast::Operator::GreaterOrEqual => {
+                    bool_to_int(self.interpret(*lhs) >= self.interpret(*rhs))
+                }
+                crate::ast::Operator::EqualEqual => {
+                    bool_to_int(self.interpret(*lhs) == self.interpret(*rhs))
+                }
+                crate::ast::Operator::NotEqual => {
+                    bool_to_int(self.interpret(*lhs) != self.interpret(*rhs))
+                }
             },
             Expression::Assignment { name, expression } => {
                 let value = self.interpret(*expression);
@@ -81,6 +99,14 @@ impl Default for Interpreter {
     }
 }
 
+fn bool_to_int(b: bool) -> i32 {
+    if b {
+        1
+    } else {
+        0
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -93,7 +119,39 @@ mod test {
     }
 
     #[test]
-    fn test_定義した変数を参照することができる() {
+    fn 真を評価すると1になる() {
+        let mut interpreter = Interpreter::default();
+
+        assert_eq!(interpreter.interpret(lt(integer(1), integer(2))), 1);
+        assert_eq!(interpreter.interpret(le(integer(1), integer(2))), 1);
+        assert_eq!(interpreter.interpret(le(integer(1), integer(1))), 1);
+
+        assert_eq!(interpreter.interpret(gt(integer(2), integer(1))), 1);
+        assert_eq!(interpreter.interpret(ge(integer(2), integer(1))), 1);
+        assert_eq!(interpreter.interpret(ge(integer(1), integer(1))), 1);
+
+        assert_eq!(interpreter.interpret(eq(integer(1), integer(1))), 1);
+        assert_eq!(interpreter.interpret(neq(integer(1), integer(2))), 1);
+    }
+
+    #[test]
+    fn 偽を評価すると0になる() {
+        let mut interpreter = Interpreter::default();
+
+        assert_eq!(interpreter.interpret(lt(integer(2), integer(1))), 0);
+        assert_eq!(interpreter.interpret(lt(integer(1), integer(1))), 0);
+        assert_eq!(interpreter.interpret(le(integer(2), integer(1))), 0);
+
+        assert_eq!(interpreter.interpret(gt(integer(1), integer(2))), 0);
+        assert_eq!(interpreter.interpret(gt(integer(1), integer(1))), 0);
+        assert_eq!(interpreter.interpret(ge(integer(1), integer(2))), 0);
+
+        assert_eq!(interpreter.interpret(eq(integer(1), integer(2))), 0);
+        assert_eq!(interpreter.interpret(neq(integer(1), integer(1))), 0);
+    }
+
+    #[test]
+    fn 定義した変数を参照することができる() {
         let mut interpreter = Interpreter::default();
         interpreter.interpret(assign("x".into(), integer(10)));
         assert_eq!(
@@ -104,7 +162,7 @@ mod test {
 
     #[test]
     #[should_panic(expected = "Identifier x is not defined")]
-    fn test_未定義の変数を参照しようとするとpanicする() {
+    fn 未定義の変数を参照しようとするとpanicする() {
         let mut interpreter = Interpreter::default();
         interpreter.interpret(add(identifier("x".into()), integer(20)));
     }
