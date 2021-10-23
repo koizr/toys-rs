@@ -5,6 +5,11 @@ pub enum Expression {
         lhs: Box<Expression>,
         rhs: Box<Expression>,
     },
+    Assignment {
+        name: String,
+        expression: Box<Expression>,
+    },
+    Identifier(String),
     IntegerLiteral(i32),
 }
 
@@ -50,4 +55,15 @@ pub fn divide(lhs: Expression, rhs: Expression) -> Expression {
 
 pub fn integer(value: i32) -> Expression {
     Expression::IntegerLiteral(value)
+}
+
+pub fn assign(name: String, expression: Expression) -> Expression {
+    Expression::Assignment {
+        name,
+        expression: Box::new(expression),
+    }
+}
+
+pub fn identifier(name: String) -> Expression {
+    Expression::Identifier(name)
 }
