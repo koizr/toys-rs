@@ -2,17 +2,51 @@ use std::collections::HashMap;
 
 use crate::ast::Expression;
 
-type Environment = HashMap<String, i32>;
+type Bindings = HashMap<String, i32>;
+
+pub struct Environment {
+    bindings: Bindings,
+    next: Option<Box<Environment>>,
+}
+
+impl Environment {
+    pub fn new(bindings: Bindings, next: Option<Box<Environment>>) -> Self {
+        Self { bindings, next }
+    }
+
+    pub fn find_binding(&self, name: &str) -> Option<&Bindings> {
+        if self.bindings.contains_key(name) {
+            Some(&self.bindings)
+        } else {
+            match &self.next {
+                Some(next) => next.find_binding(name),
+                None => None,
+            }
+        }
+    }
+
+    pub fn insert(&mut self, name: String, value: i32) {
+        self.bindings.insert(name, value);
+    }
+}
+
+impl Default for Environment {
+    fn default() -> Self {
+        Self {
+            bindings: Default::default(),
+            next: Default::default(),
+        }
+    }
+}
+
 /// インタープリタ本体
 pub struct Interpreter {
     environment: Environment,
 }
 
 impl Interpreter {
-    pub fn new() -> Self {
-        Self {
-            environment: HashMap::new(),
-        }
+    pub fn new(environment: Environment) -> Self {
+        Self { environment }
     }
 
     /// 式を評価する
@@ -31,6 +65,8 @@ impl Interpreter {
             }
             Expression::Identifier(name) => self
                 .environment
+                .find_binding(&name)
+                .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
                 .get(&name)
                 .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
                 .to_owned(),
@@ -41,7 +77,7 @@ impl Interpreter {
 
 impl Default for Interpreter {
     fn default() -> Self {
-        Self::new()
+        Self::new(Default::default())
     }
 }
 
@@ -52,13 +88,13 @@ mod test {
 
     #[test]
     fn test_10_plus_20_should_be_30() {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::default();
         assert_eq!(interpreter.interpret(add(integer(10), integer(20))), 30);
     }
 
     #[test]
     fn test_定義した変数を参照することができる() {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::default();
         interpreter.interpret(assign("x".into(), integer(10)));
         assert_eq!(
             interpreter.interpret(add(identifier("x".into()), integer(20))),
@@ -69,7 +105,7 @@ mod test {
     #[test]
     #[should_panic(expected = "Identifier x is not defined")]
     fn test_未定義の変数を参照しようとするとpanicする() {
-        let mut interpreter = Interpreter::new();
+        let mut interpreter = Interpreter::default();
         interpreter.interpret(add(identifier("x".into()), integer(20)));
     }
 }
