@@ -1,5 +1,10 @@
 /// 式
 pub enum Expression {
+    IfExpression {
+        condition: Box<Expression>,
+        then_clause: Box<Expression>,
+        else_clause: Box<Expression>,
+    },
     BinaryExpression {
         operator: Operator,
         lhs: Box<Expression>,
@@ -120,4 +125,12 @@ pub fn assign(name: String, expression: Expression) -> Expression {
 
 pub fn identifier(name: String) -> Expression {
     Expression::Identifier(name)
+}
+
+pub fn if_(condition: Expression, then_clause: Expression, else_clause: Expression) -> Expression {
+    Expression::IfExpression {
+        condition: Box::new(condition),
+        then_clause: Box::new(then_clause),
+        else_clause: Box::new(else_clause),
+    }
 }

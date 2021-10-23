@@ -52,6 +52,17 @@ impl Interpreter {
     /// 式を評価する
     pub fn interpret(&mut self, expression: Expression) -> i32 {
         match expression {
+            Expression::IfExpression {
+                condition,
+                then_clause,
+                else_clause,
+            } => {
+                if int_to_bool(self.interpret(*condition)) {
+                    self.interpret(*then_clause)
+                } else {
+                    self.interpret(*else_clause)
+                }
+            }
             Expression::BinaryExpression { operator, lhs, rhs } => match operator {
                 crate::ast::Operator::Add => self.interpret(*lhs) + self.interpret(*rhs),
                 crate::ast::Operator::Subtract => self.interpret(*lhs) - self.interpret(*rhs),
@@ -104,6 +115,14 @@ fn bool_to_int(b: bool) -> i32 {
         1
     } else {
         0
+    }
+}
+
+fn int_to_bool(i: i32) -> bool {
+    match i {
+        1 => true,
+        0 => false,
+        _ => panic!("{} is not used as condition", i),
     }
 }
 
@@ -165,5 +184,36 @@ mod test {
     fn 未定義の変数を参照しようとするとpanicする() {
         let mut interpreter = Interpreter::default();
         interpreter.interpret(add(identifier("x".into()), integer(20)));
+    }
+
+    mod if_expression {
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn conditionが真であればthen節が評価される() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.interpret(if_(
+                    eq(subtract(integer(5), integer(3)), integer(2)),
+                    integer(10),
+                    integer(20)
+                )),
+                10
+            );
+        }
+
+        #[test]
+        fn conditionが偽であればelse節が評価される() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.interpret(if_(
+                    eq(gt(integer(5), integer(3)), integer(100)),
+                    integer(10),
+                    integer(20)
+                )),
+                20
+            );
+        }
     }
 }
