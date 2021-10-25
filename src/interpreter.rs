@@ -50,56 +50,66 @@ impl Interpreter {
     }
 
     /// 式を評価する
-    pub fn interpret(&mut self, expression: Expression) -> i32 {
+    pub fn interpret(&mut self, expression: &Expression) -> i32 {
         match expression {
+            Expression::WhileExpression { condition, body } => {
+                loop {
+                    if self.interpret(condition) != 0 {
+                        self.interpret(body);
+                    } else {
+                        break;
+                    }
+                }
+                1
+            }
             Expression::IfExpression {
                 condition,
                 then_clause,
                 else_clause,
             } => {
-                if int_to_bool(self.interpret(*condition)) {
-                    self.interpret(*then_clause)
+                if int_to_bool(self.interpret(condition)) {
+                    self.interpret(then_clause)
                 } else {
-                    self.interpret(*else_clause)
+                    self.interpret(else_clause)
                 }
             }
             Expression::BinaryExpression { operator, lhs, rhs } => match operator {
-                crate::ast::Operator::Add => self.interpret(*lhs) + self.interpret(*rhs),
-                crate::ast::Operator::Subtract => self.interpret(*lhs) - self.interpret(*rhs),
-                crate::ast::Operator::Multiply => self.interpret(*lhs) * self.interpret(*rhs),
-                crate::ast::Operator::Divide => self.interpret(*lhs) / self.interpret(*rhs),
+                crate::ast::Operator::Add => self.interpret(lhs) + self.interpret(rhs),
+                crate::ast::Operator::Subtract => self.interpret(lhs) - self.interpret(rhs),
+                crate::ast::Operator::Multiply => self.interpret(lhs) * self.interpret(rhs),
+                crate::ast::Operator::Divide => self.interpret(lhs) / self.interpret(rhs),
                 crate::ast::Operator::LessThan => {
-                    bool_to_int(self.interpret(*lhs) < self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) < self.interpret(rhs))
                 }
                 crate::ast::Operator::LessOrEqual => {
-                    bool_to_int(self.interpret(*lhs) <= self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) <= self.interpret(rhs))
                 }
                 crate::ast::Operator::GreaterThan => {
-                    bool_to_int(self.interpret(*lhs) > self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) > self.interpret(rhs))
                 }
                 crate::ast::Operator::GreaterOrEqual => {
-                    bool_to_int(self.interpret(*lhs) >= self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) >= self.interpret(rhs))
                 }
                 crate::ast::Operator::EqualEqual => {
-                    bool_to_int(self.interpret(*lhs) == self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) == self.interpret(rhs))
                 }
                 crate::ast::Operator::NotEqual => {
-                    bool_to_int(self.interpret(*lhs) != self.interpret(*rhs))
+                    bool_to_int(self.interpret(lhs) != self.interpret(rhs))
                 }
             },
             Expression::Assignment { name, expression } => {
-                let value = self.interpret(*expression);
-                self.environment.insert(name, value);
+                let value = self.interpret(expression);
+                self.environment.insert(name.clone(), value);
                 value
             }
             Expression::Identifier(name) => self
                 .environment
-                .find_binding(&name)
+                .find_binding(name)
                 .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
-                .get(&name)
+                .get(name)
                 .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
                 .to_owned(),
-            Expression::IntegerLiteral(value) => value,
+            Expression::IntegerLiteral(value) => value.to_owned(),
         }
     }
 }
@@ -134,47 +144,47 @@ mod test {
     #[test]
     fn test_10_plus_20_should_be_30() {
         let mut interpreter = Interpreter::default();
-        assert_eq!(interpreter.interpret(add(integer(10), integer(20))), 30);
+        assert_eq!(interpreter.interpret(&add(integer(10), integer(20))), 30);
     }
 
     #[test]
     fn 真を評価すると1になる() {
         let mut interpreter = Interpreter::default();
 
-        assert_eq!(interpreter.interpret(lt(integer(1), integer(2))), 1);
-        assert_eq!(interpreter.interpret(le(integer(1), integer(2))), 1);
-        assert_eq!(interpreter.interpret(le(integer(1), integer(1))), 1);
+        assert_eq!(interpreter.interpret(&lt(integer(1), integer(2))), 1);
+        assert_eq!(interpreter.interpret(&le(integer(1), integer(2))), 1);
+        assert_eq!(interpreter.interpret(&le(integer(1), integer(1))), 1);
 
-        assert_eq!(interpreter.interpret(gt(integer(2), integer(1))), 1);
-        assert_eq!(interpreter.interpret(ge(integer(2), integer(1))), 1);
-        assert_eq!(interpreter.interpret(ge(integer(1), integer(1))), 1);
+        assert_eq!(interpreter.interpret(&gt(integer(2), integer(1))), 1);
+        assert_eq!(interpreter.interpret(&ge(integer(2), integer(1))), 1);
+        assert_eq!(interpreter.interpret(&ge(integer(1), integer(1))), 1);
 
-        assert_eq!(interpreter.interpret(eq(integer(1), integer(1))), 1);
-        assert_eq!(interpreter.interpret(neq(integer(1), integer(2))), 1);
+        assert_eq!(interpreter.interpret(&eq(integer(1), integer(1))), 1);
+        assert_eq!(interpreter.interpret(&neq(integer(1), integer(2))), 1);
     }
 
     #[test]
     fn 偽を評価すると0になる() {
         let mut interpreter = Interpreter::default();
 
-        assert_eq!(interpreter.interpret(lt(integer(2), integer(1))), 0);
-        assert_eq!(interpreter.interpret(lt(integer(1), integer(1))), 0);
-        assert_eq!(interpreter.interpret(le(integer(2), integer(1))), 0);
+        assert_eq!(interpreter.interpret(&lt(integer(2), integer(1))), 0);
+        assert_eq!(interpreter.interpret(&lt(integer(1), integer(1))), 0);
+        assert_eq!(interpreter.interpret(&le(integer(2), integer(1))), 0);
 
-        assert_eq!(interpreter.interpret(gt(integer(1), integer(2))), 0);
-        assert_eq!(interpreter.interpret(gt(integer(1), integer(1))), 0);
-        assert_eq!(interpreter.interpret(ge(integer(1), integer(2))), 0);
+        assert_eq!(interpreter.interpret(&gt(integer(1), integer(2))), 0);
+        assert_eq!(interpreter.interpret(&gt(integer(1), integer(1))), 0);
+        assert_eq!(interpreter.interpret(&ge(integer(1), integer(2))), 0);
 
-        assert_eq!(interpreter.interpret(eq(integer(1), integer(2))), 0);
-        assert_eq!(interpreter.interpret(neq(integer(1), integer(1))), 0);
+        assert_eq!(interpreter.interpret(&eq(integer(1), integer(2))), 0);
+        assert_eq!(interpreter.interpret(&neq(integer(1), integer(1))), 0);
     }
 
     #[test]
     fn 定義した変数を参照することができる() {
         let mut interpreter = Interpreter::default();
-        interpreter.interpret(assign("x".into(), integer(10)));
+        interpreter.interpret(&assign("x".into(), integer(10)));
         assert_eq!(
-            interpreter.interpret(add(identifier("x".into()), integer(20))),
+            interpreter.interpret(&add(identifier("x".into()), integer(20))),
             30
         );
     }
@@ -183,7 +193,7 @@ mod test {
     #[should_panic(expected = "Identifier x is not defined")]
     fn 未定義の変数を参照しようとするとpanicする() {
         let mut interpreter = Interpreter::default();
-        interpreter.interpret(add(identifier("x".into()), integer(20)));
+        interpreter.interpret(&add(identifier("x".into()), integer(20)));
     }
 
     mod if_expression {
@@ -194,7 +204,7 @@ mod test {
         fn conditionが真であればthen節が評価される() {
             let mut interpreter = Interpreter::default();
             assert_eq!(
-                interpreter.interpret(if_(
+                interpreter.interpret(&if_(
                     eq(subtract(integer(5), integer(3)), integer(2)),
                     integer(10),
                     integer(20)
@@ -207,7 +217,7 @@ mod test {
         fn conditionが偽であればelse節が評価される() {
             let mut interpreter = Interpreter::default();
             assert_eq!(
-                interpreter.interpret(if_(
+                interpreter.interpret(&if_(
                     eq(gt(integer(5), integer(3)), integer(100)),
                     integer(10),
                     integer(20)

@@ -1,5 +1,9 @@
 /// 式
 pub enum Expression {
+    WhileExpression {
+        condition: Box<Expression>,
+        body: Box<Expression>,
+    },
     IfExpression {
         condition: Box<Expression>,
         then_clause: Box<Expression>,
@@ -132,5 +136,12 @@ pub fn if_(condition: Expression, then_clause: Expression, else_clause: Expressi
         condition: Box::new(condition),
         then_clause: Box::new(then_clause),
         else_clause: Box::new(else_clause),
+    }
+}
+
+pub fn while_(condition: Expression, body: Expression) -> Expression {
+    Expression::WhileExpression {
+        condition: Box::new(condition),
+        body: Box::new(body),
     }
 }
