@@ -52,6 +52,13 @@ impl Interpreter {
     /// 式を評価する
     pub fn interpret(&mut self, expression: &Expression) -> i32 {
         match expression {
+            Expression::BlockExpression(expressions) => {
+                let mut value = 0;
+                for exp in expressions.iter() {
+                    value = self.interpret(exp);
+                }
+                value
+            }
             Expression::WhileExpression { condition, body } => {
                 loop {
                     if self.interpret(condition) != 0 {
@@ -224,6 +231,58 @@ mod test {
                 )),
                 20
             );
+        }
+    }
+
+    mod while_expression {
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn conditionが真の間bodyの評価を繰り返す() {
+            let mut interpreter = Interpreter::default();
+            interpreter.interpret(&block(vec![
+                assign("x".into(), integer(1)),
+                assign("i".into(), integer(0)),
+                while_(
+                    lt(identifier("i".into()), integer(5)),
+                    block(vec![
+                        assign("x".into(), multiply(identifier("x".into()), integer(2))),
+                        assign("i".into(), add(identifier("i".into()), integer(1))),
+                    ]),
+                ),
+            ]));
+            assert_eq!(interpreter.interpret(&identifier("x".into())), 32);
+            assert_eq!(interpreter.interpret(&identifier("i".into())), 5);
+        }
+
+        #[test]
+        fn while自体の評価値は1() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.interpret(&block(vec![
+                    assign("i".into(), integer(0)),
+                    while_(
+                        lt(identifier("i".into()), integer(5)),
+                        block(vec![
+                            assign("i".into(), add(identifier("i".into()), integer(1))),
+                            identifier("i".into()),
+                        ]),
+                    ),
+                ])),
+                1
+            );
+        }
+    }
+
+    mod body {
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn 中身が空のときの評価値は0() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(interpreter.interpret(&block(Vec::new())), 0);
         }
     }
 }

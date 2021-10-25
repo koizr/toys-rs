@@ -1,5 +1,6 @@
 /// 式
 pub enum Expression {
+    BlockExpression(Vec<Expression>),
     WhileExpression {
         condition: Box<Expression>,
         body: Box<Expression>,
@@ -144,4 +145,8 @@ pub fn while_(condition: Expression, body: Expression) -> Expression {
         condition: Box::new(condition),
         body: Box::new(body),
     }
+}
+
+pub fn block(expressions: Vec<Expression>) -> Expression {
+    Expression::BlockExpression(expressions)
 }
