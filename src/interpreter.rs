@@ -61,7 +61,7 @@ impl Interpreter {
             }
             Expression::WhileExpression { condition, body } => {
                 loop {
-                    if self.interpret(condition) != 0 {
+                    if int_to_bool(self.interpret(condition)) {
                         self.interpret(body);
                     } else {
                         break;
