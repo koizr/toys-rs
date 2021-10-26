@@ -1,4 +1,25 @@
+/// プログラム全体
+#[derive(Debug, Clone)]
+pub struct Program {
+    pub definitions: Vec<TopLevel>,
+}
+
+#[derive(Debug, Clone)]
+pub struct FunctionDefinition {
+    pub name: String,
+    pub args: Vec<String>,
+    pub body: Expression,
+}
+
+/// トップレベルに定義できるもの
+#[derive(Debug, Clone)]
+pub enum TopLevel {
+    GlobalVariableDefinition,
+    FunctionDefinition(FunctionDefinition),
+}
+
 /// 式
+#[derive(Debug, Clone)]
 pub enum Expression {
     BlockExpression(Vec<Expression>),
     WhileExpression {
@@ -21,9 +42,14 @@ pub enum Expression {
     },
     Identifier(String),
     IntegerLiteral(i32),
+    FunctionCall {
+        name: String,
+        args: Vec<Expression>,
+    },
 }
 
 /// 演算子
+#[derive(Debug, Clone)]
 pub enum Operator {
     Add,
     Subtract,

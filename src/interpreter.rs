@@ -1,16 +1,16 @@
 use std::collections::HashMap;
 
-use crate::ast::Expression;
+use crate::ast::{Expression, FunctionDefinition, Program, TopLevel};
 
 type Bindings = HashMap<String, i32>;
 
-pub struct Environment {
+pub struct Environment<'a> {
     bindings: Bindings,
-    next: Option<Box<Environment>>,
+    next: Option<Box<&'a Environment<'a>>>,
 }
 
-impl Environment {
-    pub fn new(bindings: Bindings, next: Option<Box<Environment>>) -> Self {
+impl<'a> Environment<'a> {
+    pub fn new(bindings: Bindings, next: Option<Box<&'a Environment<'a>>>) -> Self {
         Self { bindings, next }
     }
 
@@ -30,7 +30,7 @@ impl Environment {
     }
 }
 
-impl Default for Environment {
+impl<'a> Default for Environment<'a> {
     fn default() -> Self {
         Self {
             bindings: Default::default(),
@@ -40,13 +40,20 @@ impl Default for Environment {
 }
 
 /// インタープリタ本体
-pub struct Interpreter {
-    environment: Environment,
+pub struct Interpreter<'a> {
+    variable_environment: Environment<'a>,
+    function_environment: HashMap<String, FunctionDefinition>,
 }
 
-impl Interpreter {
-    pub fn new(environment: Environment) -> Self {
-        Self { environment }
+impl<'a> Interpreter<'a> {
+    pub fn new(
+        variable_environment: Environment<'a>,
+        function_environment: HashMap<String, FunctionDefinition>,
+    ) -> Self {
+        Self {
+            variable_environment,
+            function_environment,
+        }
     }
 
     /// 式を評価する
@@ -106,24 +113,63 @@ impl Interpreter {
             },
             Expression::Assignment { name, expression } => {
                 let value = self.interpret(expression);
-                self.environment.insert(name.clone(), value);
+                self.variable_environment.insert(name.clone(), value);
                 value
             }
             Expression::Identifier(name) => self
-                .environment
+                .variable_environment
                 .find_binding(name)
                 .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
                 .get(name)
                 .unwrap_or_else(|| panic!("Identifier {} is not defined", name))
                 .to_owned(),
             Expression::IntegerLiteral(value) => value.to_owned(),
+            Expression::FunctionCall { name, args } => {
+                let function = self.function_environment.get(name).cloned();
+                match function {
+                    Some(function) => {
+                        let values = args.iter().map(|a| self.interpret(a)).collect::<Vec<_>>();
+                        let mut inner_interpreter = Interpreter::new(
+                            Environment::new(
+                                function.args.into_iter().zip(values).collect(),
+                                Some(Box::new(&self.variable_environment)),
+                            ),
+                            self.function_environment.clone(), // TODO: いい方法が思いつかなくて clone したけど本当はしないほうがいい
+                        );
+                        inner_interpreter.interpret(&function.body)
+                    }
+                    None => panic!("Function {} is not found", name),
+                }
+            }
         }
+    }
+
+    /// メイン関数の呼び出し
+    pub fn call_main(&mut self, program: Program) {
+        for top_level in program.definitions {
+            match top_level {
+                TopLevel::GlobalVariableDefinition => {
+                    // TODO: あとで実装する
+                }
+                TopLevel::FunctionDefinition(func) => {
+                    self.function_environment.insert(func.name.clone(), func);
+                }
+            }
+        }
+
+        // main_function が self のフィールドを借用していると、 &mut self が必要な interpret を呼び出せなくなってしまうので
+        // 借用せずに済むように cloned() している
+        let main_function = self.function_environment.get("main".into()).cloned();
+        match main_function {
+            Some(m) => self.interpret(&m.body),
+            None => panic!("This program doesn't have main() function"),
+        };
     }
 }
 
-impl Default for Interpreter {
+impl<'a> Default for Interpreter<'a> {
     fn default() -> Self {
-        Self::new(Default::default())
+        Self::new(Default::default(), Default::default())
     }
 }
 
@@ -284,5 +330,9 @@ mod test {
             let mut interpreter = Interpreter::default();
             assert_eq!(interpreter.interpret(&block(Vec::new())), 0);
         }
+    }
+
+    mod function {
+        // TODO: 次は関数定義・呼び出しのテストを書くところから
     }
 }
