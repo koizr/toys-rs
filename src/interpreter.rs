@@ -434,4 +434,47 @@ mod test {
             )
         }
     }
+
+    mod program {
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn 階乗のプログラム() {
+            let top_level = vec![
+                // define main() {
+                //    factorial(5);
+                // }
+                function(
+                    "main".into(),
+                    vec![],
+                    block(vec![call("factorial".into(), vec![integer(5)])]),
+                ),
+                // define factorial(n) {
+                //     if (n < 2) {
+                //         1;
+                //     } else {
+                //         n * factorial(n - 1);
+                //     }
+                // }
+                function(
+                    "factorial".into(),
+                    vec!["n".into()],
+                    block(vec![if_(
+                        lt(identifier("n".into()), integer(2)),
+                        integer(1),
+                        multiply(
+                            identifier("n".into()),
+                            call(
+                                "factorial".into(),
+                                vec![subtract(identifier("n".into()), integer(1))],
+                            ),
+                        ),
+                    )]),
+                ),
+            ];
+            let mut interpreter = Interpreter::default();
+            assert_eq!(interpreter.call_main(Program::new(top_level)), 120)
+        }
+    }
 }

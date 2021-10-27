@@ -4,6 +4,12 @@ pub struct Program {
     pub definitions: Vec<TopLevel>,
 }
 
+impl Program {
+    pub fn new(definitions: Vec<TopLevel>) -> Self {
+        Self { definitions }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct FunctionDefinition {
     pub name: String,
