@@ -6,11 +6,11 @@ type Bindings = HashMap<String, i32>;
 
 pub struct Environment<'a> {
     bindings: Bindings,
-    next: Option<Box<&'a Environment<'a>>>,
+    next: Option<&'a Environment<'a>>,
 }
 
 impl<'a> Environment<'a> {
-    pub fn new(bindings: Bindings, next: Option<Box<&'a Environment<'a>>>) -> Self {
+    pub fn new(bindings: Bindings, next: Option<&'a Environment<'a>>) -> Self {
         Self { bindings, next }
     }
 
@@ -132,7 +132,7 @@ impl<'a> Interpreter<'a> {
                         let mut inner_interpreter = Interpreter::new(
                             Environment::new(
                                 function.args.into_iter().zip(values).collect(),
-                                Some(Box::new(&self.variable_environment)),
+                                Some(&self.variable_environment),
                             ),
                             self.function_environment.clone(), // TODO: いい方法が思いつかなくて clone したけど本当はしないほうがいい
                         );
@@ -159,7 +159,7 @@ impl<'a> Interpreter<'a> {
 
         // main_function が self のフィールドを借用していると、 &mut self が必要な interpret を呼び出せなくなってしまうので
         // 借用せずに済むように cloned() している
-        let main_function = self.function_environment.get("main".into()).cloned();
+        let main_function = self.function_environment.get("main").cloned();
         match main_function {
             Some(m) => self.interpret(&m.body),
             None => panic!("This program doesn't have main() function"),
