@@ -176,3 +176,11 @@ pub fn while_(condition: Expression, body: Expression) -> Expression {
 pub fn block(expressions: Vec<Expression>) -> Expression {
     Expression::BlockExpression(expressions)
 }
+
+pub fn call(name: String, args: Vec<Expression>) -> Expression {
+    Expression::FunctionCall { name, args }
+}
+
+pub fn function(name: String, args: Vec<String>, body: Expression) -> TopLevel {
+    TopLevel::FunctionDefinition(FunctionDefinition { name, args, body })
+}

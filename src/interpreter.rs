@@ -145,7 +145,7 @@ impl<'a> Interpreter<'a> {
     }
 
     /// メイン関数の呼び出し
-    pub fn call_main(&mut self, program: Program) {
+    pub fn call_main(&mut self, program: Program) -> i32 {
         for top_level in program.definitions {
             match top_level {
                 TopLevel::GlobalVariableDefinition => {
@@ -163,7 +163,7 @@ impl<'a> Interpreter<'a> {
         match main_function {
             Some(m) => self.interpret(&m.body),
             None => panic!("This program doesn't have main() function"),
-        };
+        }
     }
 }
 
@@ -333,6 +333,56 @@ mod test {
     }
 
     mod function {
-        // TODO: 次は関数定義・呼び出しのテストを書くところから
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn main関数を定義して実行できる() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.call_main(Program {
+                    definitions: vec![function(
+                        "main".into(),
+                        Vec::new(),
+                        block(vec![
+                            assign("x".into(), integer(5)),
+                            subtract(identifier("x".into()), integer(10)),
+                        ])
+                    )]
+                }),
+                -5
+            );
+        }
+
+        #[test]
+        fn 関数を定義して呼び出せる() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.call_main(Program {
+                    definitions: vec![
+                        function(
+                            "main".into(),
+                            Vec::new(),
+                            block(vec![
+                                assign("x".into(), integer(5)),
+                                call("add".into(), vec![identifier("x".into()), integer(20)]),
+                            ])
+                        ),
+                        function(
+                            "add".into(),
+                            vec!["a".into(), "b".into()],
+                            block(vec![
+                                assign("x".into(), integer(10)),
+                                add(
+                                    add(identifier("a".into()), identifier("b".into())),
+                                    identifier("x".into())
+                                ),
+                            ])
+                        )
+                    ]
+                }),
+                35
+            );
+        }
     }
 }
