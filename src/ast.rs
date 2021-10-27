@@ -14,7 +14,10 @@ pub struct FunctionDefinition {
 /// トップレベルに定義できるもの
 #[derive(Debug, Clone)]
 pub enum TopLevel {
-    GlobalVariableDefinition,
+    GlobalVariableDefinition {
+        name: String,
+        expression: Expression,
+    },
     FunctionDefinition(FunctionDefinition),
 }
 
@@ -183,4 +186,8 @@ pub fn call(name: String, args: Vec<Expression>) -> Expression {
 
 pub fn function(name: String, args: Vec<String>, body: Expression) -> TopLevel {
     TopLevel::FunctionDefinition(FunctionDefinition { name, args, body })
+}
+
+pub fn global_variable(name: String, expression: Expression) -> TopLevel {
+    TopLevel::GlobalVariableDefinition { name, expression }
 }

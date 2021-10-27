@@ -148,8 +148,9 @@ impl<'a> Interpreter<'a> {
     pub fn call_main(&mut self, program: Program) -> i32 {
         for top_level in program.definitions {
             match top_level {
-                TopLevel::GlobalVariableDefinition => {
-                    // TODO: あとで実装する
+                TopLevel::GlobalVariableDefinition { name, expression } => {
+                    let value = self.interpret(&expression);
+                    self.variable_environment.insert(name, value);
                 }
                 TopLevel::FunctionDefinition(func) => {
                     self.function_environment.insert(func.name.clone(), func);
@@ -383,6 +384,54 @@ mod test {
                 }),
                 35
             );
+        }
+    }
+
+    mod global_variable {
+        use super::super::*;
+        use crate::ast::*;
+
+        #[test]
+        fn グローバル変数を参照できる() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.call_main(Program {
+                    definitions: vec![
+                        global_variable("global_x".into(), integer(100)),
+                        function(
+                            "main".into(),
+                            Vec::new(),
+                            block(vec![
+                                assign("x".into(), integer(5)),
+                                add(identifier("x".into()), identifier("global_x".into())),
+                            ])
+                        )
+                    ]
+                }),
+                105
+            )
+        }
+
+        #[test]
+        fn グローバル変数と同名のローカル変数を定義するとそのスコープではローカル変数が優先される()
+        {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.call_main(Program {
+                    definitions: vec![
+                        global_variable("x".into(), integer(100)),
+                        function(
+                            "main".into(),
+                            Vec::new(),
+                            block(vec![
+                                assign("x".into(), integer(5)),
+                                add(identifier("x".into()), identifier("x".into())),
+                            ])
+                        )
+                    ]
+                }),
+                10
+            )
         }
     }
 }
