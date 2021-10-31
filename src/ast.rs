@@ -1,5 +1,5 @@
 /// プログラム全体
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Program {
     pub definitions: Vec<TopLevel>,
 }
@@ -10,7 +10,7 @@ impl Program {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FunctionDefinition {
     pub name: String,
     pub args: Vec<String>,
@@ -18,7 +18,7 @@ pub struct FunctionDefinition {
 }
 
 /// トップレベルに定義できるもの
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TopLevel {
     GlobalVariableDefinition {
         name: String,
@@ -28,7 +28,7 @@ pub enum TopLevel {
 }
 
 /// 式
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Expression {
     BlockExpression(Vec<Expression>),
     WhileExpression {
@@ -58,7 +58,7 @@ pub enum Expression {
 }
 
 /// 演算子
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Operator {
     Add,
     Subtract,
@@ -70,6 +70,14 @@ pub enum Operator {
     GreaterOrEqual,
     EqualEqual,
     NotEqual,
+}
+
+pub fn binary_expression(lhs: Expression, op: Operator, rhs: Expression) -> Expression {
+    Expression::BinaryExpression {
+        operator: op,
+        lhs: Box::new(lhs),
+        rhs: Box::new(rhs),
+    }
 }
 
 pub fn add(lhs: Expression, rhs: Expression) -> Expression {
