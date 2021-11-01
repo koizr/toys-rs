@@ -1,13 +1,13 @@
 use nom::{
-    branch::{alt, permutation},
+    branch::alt,
     bytes::complete::tag,
     character::{
-        complete::{alpha1, alphanumeric1, one_of},
+        complete::{alpha1, alphanumeric1, one_of, space0},
         streaming::char,
     },
     combinator::{map, map_res, recognize},
-    multi::{fold_many1, many0},
-    sequence::{delimited, pair},
+    multi::{fold_many1, many0, separated_list0},
+    sequence::{delimited, pair, terminated},
     IResult,
 };
 
@@ -21,21 +21,78 @@ pub fn top_level_definition(_input: &str) -> IResult<&str, ast::TopLevel> {
     todo!()
 }
 
-pub fn expression(_input: &str) -> IResult<&str, ast::Expression> {
-    todo!()
+/// 代入式
+///
+/// assignment <- identifier "=" expression ";";
+pub fn assignment(input: &str) -> IResult<&str, ast::Expression> {
+    map(
+        pair(
+            identifier,
+            pair(char('='), terminated(expression, char(';'))),
+        ),
+        |(name, (_, value))| ast::assign(name.into(), value),
+    )(input)
 }
 
-pub fn expression_list(_input: &str) -> IResult<&str, Vec<ast::Expression>> {
-    todo!()
+/// 式行
+///
+/// expressionLine <- expression ";";
+pub fn expression_line(input: &str) -> IResult<&str, ast::Expression> {
+    map(terminated(expression, char(';')), |exp| exp)(input)
 }
 
+/// 式
+///
+/// expression <- comparative;
+pub fn expression(input: &str) -> IResult<&str, ast::Expression> {
+    comparative(input)
+}
+
+/// カンマ区切りの式リスト
+///
+/// expressionList <- ( expression, ("," expression)* )?;
+pub fn expression_list(input: &str) -> IResult<&str, Vec<ast::Expression>> {
+    separated_list0(pair(char(','), space0), expression)(input)
+}
+
+/// 比較演算と同程度の優先度の演算
+///
+/// comparative <- additive (("<" / "<=" / ">" / ">=", "==") additive)*;
+pub fn comparative(input: &str) -> IResult<&str, ast::Expression> {
+    let lt_op = map(char('<'), |_| ast::Operator::LessThan);
+    let le_op = map(tag("<="), |_| ast::Operator::LessOrEqual);
+
+    let gt_op = map(char('>'), |_| ast::Operator::GreaterThan);
+    let ge_op = map(tag(">="), |_| ast::Operator::GreaterOrEqual);
+
+    let eq_op = map(tag("=="), |_| ast::Operator::EqualEqual);
+
+    let (input, head) = additive(input)?;
+    fold_many1(
+        pair(alt((lt_op, le_op, gt_op, ge_op, eq_op)), additive),
+        move || head.clone(),
+        |lhs, (op, rhs)| ast::binary_expression(lhs, op, rhs),
+    )(input)
+}
+
+/// 加算と同程度の優先度の演算
+///
+/// additive <- multitive (("+" / "-") multitive)*;
 pub fn additive(input: &str) -> IResult<&str, ast::Expression> {
-    todo!("次ここから")
+    let add_operator = map(char('+'), |_| ast::Operator::Add);
+    let subtract_operator = map(char('-'), |_| ast::Operator::Subtract);
+
+    let (input, head) = multitive(input)?;
+    fold_many1(
+        pair(alt((add_operator, subtract_operator)), multitive),
+        move || head.clone(),
+        |lhs, (op, rhs)| ast::binary_expression(lhs, op, rhs),
+    )(input)
 }
 
 /// 乗算と同程度の優先度の演算
 ///
-/// multitive <- primary (("*" / "/") primary)*
+/// multitive <- primary (("*" / "/") primary)*;
 pub fn multitive(input: &str) -> IResult<&str, ast::Expression> {
     let multiply_operator = map(char('*'), |_| ast::Operator::Multiply);
     let divide_operator = map(char('/'), |_| ast::Operator::Divide);
@@ -50,7 +107,7 @@ pub fn multitive(input: &str) -> IResult<&str, ast::Expression> {
 
 /// 最優先の演算
 ///
-/// primary <- "(" expression ")" / integer / functionCall / identifier
+/// primary <- "(" expression ")" / integer / functionCall / identifier;
 pub fn primary(input: &str) -> IResult<&str, ast::Expression> {
     alt((
         delimited(char('('), expression, char(')')),
@@ -80,7 +137,7 @@ pub fn integer(input: &str) -> IResult<&str, ast::Expression> {
 /// ")";
 pub fn function_call(input: &str) -> IResult<&str, ast::Expression> {
     map(
-        permutation((identifier, delimited(char('('), expression_list, char(')')))),
+        pair(identifier, delimited(char('('), expression_list, char(')'))),
         |(name, args)| ast::call(name.into(), args),
     )(input)
 }
