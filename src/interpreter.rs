@@ -141,6 +141,10 @@ impl<'a> Interpreter<'a> {
                     None => panic!("Function {} is not found", name),
                 }
             }
+            Expression::Println(expression) => {
+                println!("{}", self.interpret(expression));
+                0
+            }
         }
     }
 

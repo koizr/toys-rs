@@ -7,18 +7,94 @@ use nom::{
     },
     combinator::{map, map_res, recognize},
     multi::{fold_many1, many0, separated_list0},
-    sequence::{delimited, pair, terminated},
+    sequence::{delimited, pair, preceded, terminated},
     IResult,
 };
 
 use crate::ast;
 
-pub fn program(_input: &str) -> IResult<&str, ast::Program> {
-    todo!()
+/// program <- topLevelDefinition*;
+pub fn program(input: &str) -> IResult<&str, ast::Program> {
+    map(many0(top_level_definition), |tld| ast::Program {
+        definitions: tld,
+    })(input)
 }
 
-pub fn top_level_definition(_input: &str) -> IResult<&str, ast::TopLevel> {
-    todo!()
+/// topLevelDefinition <- globalVariableDefinition / functionDefinition;
+pub fn top_level_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+    alt((global_variable_definition, function_definition))(input)
+}
+
+/// functionDefinition <- "define" identifier "(" (identifier ("," identifier)*)? ")" blockExpression;
+pub fn function_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+    let (input, _) = tag("define")(input)?;
+    let (input, name) = identifier(input)?;
+    let (input, args) = delimited(char('('), identifier_list, char(')'))(input)?;
+    map(block, move |body| {
+        ast::function(
+            name.into(),
+            // TODO: clone しないようにする。 Rust への理解が足りなくて clone をなくせていない
+            args.clone().into_iter().map(String::from).collect(),
+            body,
+        )
+    })(input)
+}
+
+/// globalVariableDefinition <- "global" identifier "=" expression;
+pub fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+    map(
+        preceded(
+            tag("global"),
+            pair(identifier, preceded(char('='), expression)),
+        ),
+        |(name, expression)| ast::global_variable(name.into(), expression),
+    )(input)
+}
+
+/// line <- println / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
+pub fn line(input: &str) -> IResult<&str, ast::Expression> {
+    alt((println_, while_, if_, assignment, expression_line, block))(input)
+}
+
+/// println <- "println" "(" expression ")";
+pub fn println_(input: &str) -> IResult<&str, ast::Expression> {
+    map(
+        preceded(tag("println"), delimited(char('('), expression, char(')'))),
+        ast::println_,
+    )(input)
+}
+
+/// ifExpression <- "if" "(" expression ")" line "else" line;
+///
+/// 本当はこっち ↓
+/// ifExpression <- "if" "(" expression ")" line ("else" line)?;
+pub fn if_(input: &str) -> IResult<&str, ast::Expression> {
+    map(
+        preceded(
+            tag("if"),
+            pair(
+                delimited(char('('), expression, char(')')),
+                pair(line, preceded(tag("else"), line)),
+            ),
+        ),
+        |(condition, (then_clause, else_clause))| ast::if_(condition, then_clause, else_clause),
+    )(input)
+}
+
+/// whileExpression <- "while" "(" expression ")" line;
+pub fn while_(input: &str) -> IResult<&str, ast::Expression> {
+    map(
+        preceded(
+            tag("while"),
+            pair(delimited(char('('), expression, char(')')), line),
+        ),
+        |(condition, body)| ast::while_(condition, body),
+    )(input)
+}
+
+/// blockExpression <- "{" line* "}";
+pub fn block(input: &str) -> IResult<&str, ast::Expression> {
+    map(delimited(char('{'), many0(line), char('}')), ast::block)(input)
 }
 
 /// 代入式
@@ -147,7 +223,11 @@ pub fn identifier_expression(input: &str) -> IResult<&str, ast::Expression> {
     map(identifier, |name| ast::identifier(name.into()))(input)
 }
 
-pub fn identifier(input: &str) -> IResult<&str, &str> {
+fn identifier_list(input: &str) -> IResult<&str, Vec<&str>> {
+    separated_list0(pair(char(','), space0), identifier)(input)
+}
+
+fn identifier(input: &str) -> IResult<&str, &str> {
     recognize(pair(
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),

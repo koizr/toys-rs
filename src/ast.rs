@@ -55,6 +55,7 @@ pub enum Expression {
         name: String,
         args: Vec<Expression>,
     },
+    Println(Box<Expression>),
 }
 
 /// 演算子
@@ -196,6 +197,10 @@ pub fn block(expressions: Vec<Expression>) -> Expression {
 
 pub fn call(name: String, args: Vec<Expression>) -> Expression {
     Expression::FunctionCall { name, args }
+}
+
+pub fn println_(expression: Expression) -> Expression {
+    Expression::Println(Box::new(expression))
 }
 
 pub fn function(name: String, args: Vec<String>, body: Expression) -> TopLevel {
