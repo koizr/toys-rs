@@ -210,3 +210,7 @@ pub fn function(name: String, args: Vec<String>, body: Expression) -> TopLevel {
 pub fn global_variable(name: String, expression: Expression) -> TopLevel {
     TopLevel::GlobalVariableDefinition { name, expression }
 }
+
+pub fn program(definitions: Vec<TopLevel>) -> Program {
+    Program::new(definitions)
+}
