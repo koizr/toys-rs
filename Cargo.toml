@@ -7,5 +7,3 @@ edition = "2021"
 
 [dependencies]
 nom = "7"
-pest = "2.1"
-pest_derive = "2.1"
