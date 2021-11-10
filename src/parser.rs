@@ -57,15 +57,29 @@ pub fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     Ok((input, ast::global_variable(name.into(), expression)))
 }
 
-/// line <- println / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
+/// line <- println ";" / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
 pub fn line(input: &str) -> IResult<&str, ast::Expression> {
-    alt((println_, while_, if_, assignment, expression_line, block))(input)
+    alt((
+        terminated(println_, tag(";")),
+        while_,
+        if_,
+        assignment,
+        expression_line,
+        block,
+    ))(input)
 }
 
 /// println <- "println" "(" expression ")";
 pub fn println_(input: &str) -> IResult<&str, ast::Expression> {
     map(
-        preceded(tag("println"), delimited(tag("("), expression, tag(")"))),
+        preceded(
+            tag("println"),
+            delimited(
+                tag("("),
+                delimited(multispace0, expression, multispace0),
+                tag(")"),
+            ),
+        ),
         ast::println_,
     )(input)
 }
@@ -335,6 +349,14 @@ mod test {
     }
 
     #[test]
+    fn グローバル変数宣言をパースできる() {
+        assert_eq!(
+            global_variable_definition("global g = 42"),
+            Ok(("", ast::global_variable("g".into(), ast::integer(42))))
+        );
+    }
+
+    #[test]
     fn 関数定義をパースできる() {
         let code = "define add(a, b) {
                 a + b;
@@ -350,6 +372,109 @@ mod test {
         );
 
         assert_eq!(function_definition(code), Ok(("", expected_ast)));
+    }
+
+    #[test]
+    fn printlnをパースできる() {
+        assert_eq!(
+            println_("println(5 / 7)"),
+            Ok((
+                "",
+                ast::println_(ast::divide(ast::integer(5), ast::integer(7)))
+            ))
+        );
+    }
+
+    #[test]
+    fn if式をパースできる() {
+        assert_eq!(
+            if_("if (condition) 1 + 2; else 3 - 4;"),
+            Ok((
+                "",
+                ast::if_(
+                    ast::identifier("condition".into()),
+                    ast::add(ast::integer(1), ast::integer(2)),
+                    ast::subtract(ast::integer(3), ast::integer(4))
+                )
+            ))
+        );
+        assert_eq!(
+            if_("if (condition) { 1 + 2; } else { 3 - 4; }"),
+            Ok((
+                "",
+                ast::if_(
+                    ast::identifier("condition".into()),
+                    ast::block(vec![ast::add(ast::integer(1), ast::integer(2))]),
+                    ast::block(vec![ast::subtract(ast::integer(3), ast::integer(4))])
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn else_ifをパースできる() {
+        let code = "if (condition) {
+                1 + 2;
+            } else if (flag) {
+                3 - 4;
+            } else {
+                5 * 6;
+            }";
+        assert_eq!(
+            if_(code),
+            Ok((
+                "",
+                ast::if_(
+                    ast::identifier("condition".into()),
+                    ast::block(vec![ast::add(ast::integer(1), ast::integer(2))]),
+                    ast::if_(
+                        ast::identifier("flag".into()),
+                        ast::block(vec![ast::subtract(ast::integer(3), ast::integer(4))]),
+                        ast::block(vec![ast::multiply(ast::integer(5), ast::integer(6))])
+                    )
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn while式をパースできる() {
+        assert_eq!(
+            while_("while (value < 100) { value = value + 1; }"),
+            Ok((
+                "",
+                ast::while_(
+                    ast::lt(ast::identifier("value".into()), ast::integer(100)),
+                    ast::block(vec![ast::assign(
+                        "value".into(),
+                        ast::add(ast::identifier("value".into()), ast::integer(1))
+                    )])
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn block式をパースできる() {
+        assert_eq!(
+            block("{ value = 1; println(value); println(value + 1); }"),
+            Ok((
+                "",
+                ast::block(vec![
+                    ast::assign("value".into(), ast::integer(1),),
+                    ast::println_(ast::identifier("value".into())),
+                    ast::println_(ast::add(ast::identifier("value".into()), ast::integer(1)))
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn 代入式をパースできる() {
+        assert_eq!(
+            assignment("a = 20;"),
+            Ok(("", ast::assign("a".into(), ast::integer(20))))
+        );
     }
 
     #[test]
