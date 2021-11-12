@@ -1,0 +1,9 @@
+global pi = 3
+
+define main() {
+    println(circle_area(10));
+}
+
+define circle_area(radius) {
+    radius * radius * pi;
+}
