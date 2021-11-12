@@ -15,7 +15,7 @@ use crate::error::ToysError;
 pub fn parse(input: &str) -> Result<ast::Program, ToysError> {
     match program(input).finish() {
         Ok((remain, program_ast)) => {
-            if remain.len() > 0 {
+            if !remain.is_empty() {
                 Err(ToysError::ParseError(format!(
                     "contains invalid characters: {}",
                     remain

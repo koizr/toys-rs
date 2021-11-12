@@ -15,7 +15,8 @@ fn main() -> Result<()> {
         Options {
             file_path: Some(file_path),
             ..
-        } => fs::read_to_string(&file_path).expect(&format!("Failed to read file {}", file_path)),
+        } => fs::read_to_string(&file_path)
+            .unwrap_or_else(|_| panic!("Failed to read file {}", file_path)),
         Options {
             eval: Some(code), ..
         } => code,

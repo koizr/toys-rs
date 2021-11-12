@@ -59,14 +59,14 @@ impl<'a> Interpreter<'a> {
     /// 式を評価する
     pub fn interpret(&mut self, expression: &Expression) -> i32 {
         match expression {
-            Expression::BlockExpression(expressions) => {
+            Expression::Block(expressions) => {
                 let mut value = 0;
                 for exp in expressions.iter() {
                     value = self.interpret(exp);
                 }
                 value
             }
-            Expression::WhileExpression { condition, body } => {
+            Expression::While { condition, body } => {
                 loop {
                     if int_to_bool(self.interpret(condition)) {
                         self.interpret(body);
@@ -76,7 +76,7 @@ impl<'a> Interpreter<'a> {
                 }
                 1
             }
-            Expression::IfExpression {
+            Expression::If {
                 condition,
                 then_clause,
                 else_clause,
@@ -87,7 +87,7 @@ impl<'a> Interpreter<'a> {
                     self.interpret(else_clause)
                 }
             }
-            Expression::BinaryExpression { operator, lhs, rhs } => match operator {
+            Expression::Binary { operator, lhs, rhs } => match operator {
                 crate::ast::Operator::Add => self.interpret(lhs) + self.interpret(rhs),
                 crate::ast::Operator::Subtract => self.interpret(lhs) - self.interpret(rhs),
                 crate::ast::Operator::Multiply => self.interpret(lhs) * self.interpret(rhs),
