@@ -5,13 +5,31 @@ use nom::{
     combinator::{map, map_res, recognize},
     multi::{fold_many0, many0, separated_list0},
     sequence::{delimited, pair, preceded, terminated},
-    IResult,
+    Finish, IResult,
 };
 
 use crate::ast;
+use crate::error::ToysError;
+
+/// プログラムをパースして AST を返す
+pub fn parse(input: &str) -> Result<ast::Program, ToysError> {
+    match program(input).finish() {
+        Ok((remain, program_ast)) => {
+            if remain.len() > 0 {
+                Err(ToysError::ParseError(format!(
+                    "contains invalid characters: {}",
+                    remain
+                )))
+            } else {
+                Ok(program_ast)
+            }
+        }
+        Err(err) => Err(ToysError::ParseError(format!("{:?}", err))),
+    }
+}
 
 /// program <- topLevelDefinition*;
-pub fn program(input: &str) -> IResult<&str, ast::Program> {
+fn program(input: &str) -> IResult<&str, ast::Program> {
     map(
         many0(delimited(multispace0, top_level_definition, multispace0)),
         ast::program,
@@ -19,12 +37,12 @@ pub fn program(input: &str) -> IResult<&str, ast::Program> {
 }
 
 /// topLevelDefinition <- globalVariableDefinition / functionDefinition;
-pub fn top_level_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+fn top_level_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     alt((global_variable_definition, function_definition))(input)
 }
 
 /// functionDefinition <- "define" identifier "(" (identifier ("," identifier)*)? ")" blockExpression;
-pub fn function_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+fn function_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     let (input, _) = tag("define")(input)?;
     let (input, _) = multispace1(input)?;
     let (input, name) = identifier(input)?;
@@ -45,8 +63,8 @@ pub fn function_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     ))
 }
 
-/// globalVariableDefinition <- "global" identifier "=" expression;
-pub fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
+/// globalVariableDefinition <- "global" identifier "=" expression ";";
+fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     let (input, _) = tag("global")(input)?;
     let (input, _) = multispace1(input)?;
     let (input, name) = identifier(input)?;
@@ -58,7 +76,7 @@ pub fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
 }
 
 /// line <- println ";" / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
-pub fn line(input: &str) -> IResult<&str, ast::Expression> {
+fn line(input: &str) -> IResult<&str, ast::Expression> {
     alt((
         terminated(println_, tag(";")),
         while_,
@@ -70,7 +88,7 @@ pub fn line(input: &str) -> IResult<&str, ast::Expression> {
 }
 
 /// println <- "println" "(" expression ")";
-pub fn println_(input: &str) -> IResult<&str, ast::Expression> {
+fn println_(input: &str) -> IResult<&str, ast::Expression> {
     map(
         preceded(
             tag("println"),
@@ -88,7 +106,7 @@ pub fn println_(input: &str) -> IResult<&str, ast::Expression> {
 ///
 /// 本当はこっち ↓
 /// ifExpression <- "if" "(" expression ")" line ("else" line)?;
-pub fn if_(input: &str) -> IResult<&str, ast::Expression> {
+fn if_(input: &str) -> IResult<&str, ast::Expression> {
     let (input, _) = tag("if")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, condition) = delimited(tag("("), expression, tag(")"))(input)?;
@@ -102,7 +120,7 @@ pub fn if_(input: &str) -> IResult<&str, ast::Expression> {
 }
 
 /// whileExpression <- "while" "(" expression ")" line;
-pub fn while_(input: &str) -> IResult<&str, ast::Expression> {
+fn while_(input: &str) -> IResult<&str, ast::Expression> {
     let (input, _) = tag("while")(input)?;
     let (input, _) = multispace0(input)?;
     let (input, condition) = delimited(tag("("), expression, tag(")"))(input)?;
@@ -112,7 +130,7 @@ pub fn while_(input: &str) -> IResult<&str, ast::Expression> {
 }
 
 /// blockExpression <- "{" line* "}";
-pub fn block(input: &str) -> IResult<&str, ast::Expression> {
+fn block(input: &str) -> IResult<&str, ast::Expression> {
     map(
         delimited(
             tag("{"),
@@ -130,7 +148,7 @@ pub fn block(input: &str) -> IResult<&str, ast::Expression> {
 /// 代入式
 ///
 /// assignment <- identifier "=" expression ";";
-pub fn assignment(input: &str) -> IResult<&str, ast::Expression> {
+fn assignment(input: &str) -> IResult<&str, ast::Expression> {
     let (input, name) = identifier(input)?;
     let (input, _) = multispace0(input)?;
     let (input, _) = tag("=")(input)?;
@@ -142,14 +160,14 @@ pub fn assignment(input: &str) -> IResult<&str, ast::Expression> {
 /// 式行
 ///
 /// expressionLine <- expression ";";
-pub fn expression_line(input: &str) -> IResult<&str, ast::Expression> {
+fn expression_line(input: &str) -> IResult<&str, ast::Expression> {
     map(terminated(expression, tag(";")), |exp| exp)(input)
 }
 
 /// 式
 ///
 /// expression <- comparative;
-pub fn expression(input: &str) -> IResult<&str, ast::Expression> {
+fn expression(input: &str) -> IResult<&str, ast::Expression> {
     let (input, _) = multispace0(input)?;
     let (input, exp) = comparative(input)?;
     let (input, _) = multispace0(input)?;
@@ -159,14 +177,14 @@ pub fn expression(input: &str) -> IResult<&str, ast::Expression> {
 /// カンマ区切りの式リスト
 ///
 /// expressionList <- ( expression, ("," expression)* )?;
-pub fn expression_list(input: &str) -> IResult<&str, Vec<ast::Expression>> {
+fn expression_list(input: &str) -> IResult<&str, Vec<ast::Expression>> {
     separated_list0(delimited(multispace0, tag(","), multispace0), expression)(input)
 }
 
 /// 比較演算と同程度の優先度の演算
 ///
 /// comparative <- additive (("<" / "<=" / ">" / ">=", "==") additive)*;
-pub fn comparative(input: &str) -> IResult<&str, ast::Expression> {
+fn comparative(input: &str) -> IResult<&str, ast::Expression> {
     let lt_op = map(tag("<"), |_| ast::Operator::LessThan);
     let le_op = map(tag("<="), |_| ast::Operator::LessOrEqual);
 
@@ -195,7 +213,7 @@ pub fn comparative(input: &str) -> IResult<&str, ast::Expression> {
 /// 加算と同程度の優先度の演算
 ///
 /// additive <- multitive (("+" / "-") multitive)*;
-pub fn additive(input: &str) -> IResult<&str, ast::Expression> {
+fn additive(input: &str) -> IResult<&str, ast::Expression> {
     let add_operator = map(tag("+"), |_| ast::Operator::Add);
     let subtract_operator = map(tag("-"), |_| ast::Operator::Subtract);
 
@@ -217,7 +235,7 @@ pub fn additive(input: &str) -> IResult<&str, ast::Expression> {
 /// 乗算と同程度の優先度の演算
 ///
 /// multitive <- primary (("*" / "/") primary)*;
-pub fn multitive(input: &str) -> IResult<&str, ast::Expression> {
+fn multitive(input: &str) -> IResult<&str, ast::Expression> {
     let multiply_operator = map(tag("*"), |_| ast::Operator::Multiply);
     let divide_operator = map(tag("/"), |_| ast::Operator::Divide);
 
@@ -239,7 +257,7 @@ pub fn multitive(input: &str) -> IResult<&str, ast::Expression> {
 /// 最優先の演算
 ///
 /// primary <- "(" expression ")" / integer / functionCall / identifier;
-pub fn primary(input: &str) -> IResult<&str, ast::Expression> {
+fn primary(input: &str) -> IResult<&str, ast::Expression> {
     alt((
         delimited(
             tag("("),
@@ -253,7 +271,7 @@ pub fn primary(input: &str) -> IResult<&str, ast::Expression> {
 }
 
 /// 整数値
-pub fn integer(input: &str) -> IResult<&str, ast::Expression> {
+fn integer(input: &str) -> IResult<&str, ast::Expression> {
     map_res(
         pair(one_of("123456789"), many0(one_of("0123456789"))),
         |(h, mut t)| {
@@ -270,14 +288,14 @@ pub fn integer(input: &str) -> IResult<&str, ast::Expression> {
 /// functionCall <- identifier "("
 ///     (expression ("," expression)*)?
 /// ")";
-pub fn function_call(input: &str) -> IResult<&str, ast::Expression> {
+fn function_call(input: &str) -> IResult<&str, ast::Expression> {
     let (input, name) = identifier(input)?;
     let (input, args) = delimited(tag("("), expression_list, tag(")"))(input)?;
     Ok((input, ast::call(name.into(), args)))
 }
 
 /// identifier <- IDENT;
-pub fn identifier_expression(input: &str) -> IResult<&str, ast::Expression> {
+fn identifier_expression(input: &str) -> IResult<&str, ast::Expression> {
     map(identifier, |name| ast::identifier(name.into()))(input)
 }
 
@@ -290,16 +308,6 @@ fn identifier(input: &str) -> IResult<&str, &str> {
         alt((alpha1, tag("_"))),
         many0(alt((alphanumeric1, tag("_")))),
     ))(input)
-}
-
-pub struct ParseError {
-    pub message: String,
-}
-
-impl ParseError {
-    pub fn new(message: String) -> Self {
-        Self { message }
-    }
 }
 
 #[cfg(test)]
