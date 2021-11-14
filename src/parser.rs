@@ -1,7 +1,7 @@
 use nom::{
     branch::alt,
     bytes::complete::tag,
-    character::complete::{alpha1, alphanumeric1, multispace0, multispace1, one_of},
+    character::complete::{alpha1, alphanumeric1, digit1, multispace0, multispace1},
     combinator::{map, map_res, recognize},
     multi::{fold_many0, many0, separated_list0},
     sequence::{delimited, pair, preceded, terminated},
@@ -272,17 +272,7 @@ fn primary(input: &str) -> IResult<&str, ast::Expression> {
 
 /// 整数値
 fn integer(input: &str) -> IResult<&str, ast::Expression> {
-    map_res(
-        pair(one_of("123456789"), many0(one_of("0123456789"))),
-        |(h, mut t)| {
-            let mut ns = vec![h];
-            ns.append(&mut t);
-            ns.iter()
-                .collect::<String>()
-                .parse::<i32>()
-                .map(ast::integer)
-        },
-    )(input)
+    map_res(digit1, |n: &str| n.parse().map(ast::integer))(input)
 }
 
 /// functionCall <- identifier "("
@@ -487,6 +477,7 @@ mod test {
 
     #[test]
     fn 整数値をパースできる() {
+        assert_eq!(integer("0").unwrap(), ("", ast::integer(0)));
         assert_eq!(integer("1234").unwrap(), ("", ast::integer(1234)));
         assert_eq!(integer("1234foo").unwrap(), ("foo", ast::integer(1234)));
     }
