@@ -1,6 +1,6 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, panic};
 
-use crate::ast::{Expression, FunctionDefinition, Program, TopLevel};
+use crate::ast::{Expression, FunctionDefinition, LabeledParameter, Program, TopLevel};
 
 type Bindings = HashMap<String, i32>;
 
@@ -144,6 +144,26 @@ impl<'a> Interpreter<'a> {
             Expression::Println(expression) => {
                 println!("{}", self.interpret(expression));
                 0
+            }
+            Expression::LabeledCall { name, args } => {
+                let function = self.function_environment.get(name).cloned();
+                match function {
+                    Some(function) => {
+                        let mut inner_interpreter = Interpreter::new(
+                            Environment::new(
+                                args.into_iter()
+                                    .map(|LabeledParameter { name, parameter }| {
+                                        (name.clone(), self.interpret(parameter))
+                                    })
+                                    .collect(),
+                                Some(&self.variable_environment),
+                            ),
+                            self.function_environment.clone(),
+                        );
+                        inner_interpreter.interpret(&function.body)
+                    }
+                    None => panic!("Function {} is not found", name),
+                }
             }
         }
     }
@@ -387,6 +407,47 @@ mod test {
                     ]
                 }),
                 35
+            );
+        }
+
+        #[test]
+        fn 関数をラベル引数で呼び出せる() {
+            let mut interpreter = Interpreter::default();
+            assert_eq!(
+                interpreter.call_main(Program {
+                    definitions: vec![
+                        function(
+                            "main".into(),
+                            Vec::new(),
+                            block(vec![
+                                assign(
+                                    "x".into(),
+                                    labeled_call(
+                                        "sub".into(),
+                                        vec![("a".into(), integer(10)), ("b".into(), integer(5))]
+                                    ),
+                                ),
+                                assign(
+                                    "y".into(),
+                                    labeled_call(
+                                        "sub".into(),
+                                        vec![("b".into(), integer(2)), ("a".into(), integer(3))]
+                                    ),
+                                ),
+                                add(identifier("x".into()), identifier("y".into()))
+                            ])
+                        ),
+                        function(
+                            "sub".into(),
+                            vec!["a".into(), "b".into()],
+                            block(vec![subtract(
+                                identifier("a".into()),
+                                identifier("b".into())
+                            )])
+                        )
+                    ]
+                }),
+                6
             );
         }
     }

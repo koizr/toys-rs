@@ -305,6 +305,7 @@ fn primary(input: &str) -> IResult<&str, ast::Expression> {
         ),
         integer,
         function_call,
+        labeled_function_call,
         identifier_expression,
     ))(input)
 }
@@ -321,6 +322,28 @@ fn function_call(input: &str) -> IResult<&str, ast::Expression> {
     let (input, name) = identifier(input)?;
     let (input, args) = delimited(tag("("), expression_list, tag(")"))(input)?;
     Ok((input, ast::call(name.into(), args)))
+}
+
+/// labeledFunctionCall <- identifier "["
+///     (identifier "=" expression ("," identifier "=" expression)*)?
+/// "]";
+fn labeled_function_call(input: &str) -> IResult<&str, ast::Expression> {
+    let (input, name) = identifier(input)?;
+    let (input, args) = delimited(
+        tag("["),
+        delimited(multispace0, labeled_parameters, multispace0),
+        tag("]"),
+    )(input)?;
+    Ok((input, ast::labeled_call(name.into(), args)))
+}
+
+fn labeled_parameters(input: &str) -> IResult<&str, Vec<(String, ast::Expression)>> {
+    separated_list0(delimited(multispace0, tag(","), multispace0), |input| {
+        let (input, name) = identifier(input)?;
+        let (input, _) = delimited(multispace0, tag("="), multispace0)(input)?;
+        let (input, expression) = expression(input)?;
+        Ok((input, (name.into(), expression)))
+    })(input)
 }
 
 /// identifier <- IDENT;
@@ -673,6 +696,43 @@ mod test {
                 ast::call(
                     "func".into(),
                     vec![ast::identifier("a".into()), ast::identifier("b".into())]
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn ラベル引数を使った関数呼び出しをパースできる() {
+        assert_eq!(
+            labeled_function_call("func[a = 1]"),
+            Ok((
+                "",
+                ast::labeled_call("func".into(), vec![("a".into(), ast::integer(1))])
+            ))
+        );
+        assert_eq!(
+            labeled_function_call("func[a = 1, b = 2]"),
+            Ok((
+                "",
+                ast::labeled_call(
+                    "func".into(),
+                    vec![("a".into(), ast::integer(1)), ("b".into(), ast::integer(2))]
+                )
+            ))
+        );
+        assert_eq!(
+            labeled_function_call("func[a = 1 + 2, b = func_x[c = 8]]"),
+            Ok((
+                "",
+                ast::labeled_call(
+                    "func".into(),
+                    vec![
+                        ("a".into(), ast::add(ast::integer(1), ast::integer(2))),
+                        (
+                            "b".into(),
+                            ast::labeled_call("func_x".into(), vec![("c".into(), ast::integer(8))])
+                        ),
+                    ]
                 )
             ))
         );

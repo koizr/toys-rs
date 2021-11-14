@@ -56,6 +56,16 @@ pub enum Expression {
         args: Vec<Expression>,
     },
     Println(Box<Expression>),
+    LabeledCall {
+        name: String,
+        args: Vec<LabeledParameter>,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct LabeledParameter {
+    pub name: String,
+    pub parameter: Expression,
 }
 
 /// 演算子
@@ -215,6 +225,17 @@ pub fn block(expressions: Vec<Expression>) -> Expression {
 #[allow(dead_code)]
 pub fn call(name: String, args: Vec<Expression>) -> Expression {
     Expression::FunctionCall { name, args }
+}
+
+#[allow(dead_code)]
+pub fn labeled_call(name: String, args: Vec<(String, Expression)>) -> Expression {
+    Expression::LabeledCall {
+        name,
+        args: args
+            .into_iter()
+            .map(|(name, parameter)| LabeledParameter { name, parameter })
+            .collect(),
+    }
 }
 
 #[allow(dead_code)]
