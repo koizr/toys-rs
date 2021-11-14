@@ -75,10 +75,11 @@ fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     Ok((input, ast::global_variable(name.into(), expression)))
 }
 
-/// line <- println ";" / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
+/// line <- println ";" / forInExpression / whileExpression / ifExpression / assignment / expressionLine / blockExpression;
 fn line(input: &str) -> IResult<&str, ast::Expression> {
     alt((
         terminated(println_, tag(";")),
+        for_in,
         while_,
         if_,
         assignment,
@@ -127,6 +128,44 @@ fn while_(input: &str) -> IResult<&str, ast::Expression> {
     let (input, _) = multispace0(input)?;
     let (input, body) = line(input)?;
     Ok((input, ast::while_(condition, body)))
+}
+
+/// forInExpression <- "for" "(" identifier "in" integer "to" integer ")" line;
+fn for_in(input: &str) -> IResult<&str, ast::Expression> {
+    let (input, _) = pair(tag("for"), multispace0)(input)?;
+    let (input, (i, from, to)) = delimited(
+        tag("("),
+        |input| {
+            let (input, _) = multispace0(input)?;
+            let (input, i) = identifier(input)?;
+            let (input, _) = delimited(multispace1, tag("in"), multispace1)(input)?;
+            let (input, from) = integer(input)?;
+            let (input, _) = delimited(multispace1, tag("to"), multispace1)(input)?;
+            let (input, to) = integer(input)?;
+            let (input, _) = multispace0(input)?;
+            Ok((input, (i, from, to)))
+        },
+        tag(")"),
+    )(input)?;
+    let (input, _) = multispace0(input)?;
+    let (input, body) = line(input)?;
+
+    Ok((
+        input,
+        ast::block(vec![
+            ast::assign(i.into(), from),
+            ast::while_(
+                ast::lt(ast::identifier(i.into()), to),
+                ast::block(vec![
+                    body,
+                    ast::assign(
+                        i.into(),
+                        ast::add(ast::identifier(i.into()), ast::integer(1)),
+                    ),
+                ]),
+            ),
+        ]),
+    ))
 }
 
 /// blockExpression <- "{" line* "}";
@@ -433,6 +472,32 @@ mod test {
                 )
             ))
         );
+    }
+
+    #[test]
+    fn for_in式をパースできる() {
+        assert_eq!(
+            for_in("for (i in 0 to 10) { println(i + 10); }"),
+            Ok((
+                "",
+                ast::block(vec![
+                    ast::assign("i".into(), ast::integer(0)),
+                    ast::while_(
+                        ast::lt(ast::identifier("i".into()), ast::integer(10)),
+                        ast::block(vec![
+                            ast::block(vec![ast::println_(ast::add(
+                                ast::identifier("i".into()),
+                                ast::integer(10)
+                            ))]),
+                            ast::assign(
+                                "i".into(),
+                                ast::add(ast::identifier("i".into()), ast::integer(1))
+                            )
+                        ])
+                    )
+                ])
+            ))
+        )
     }
 
     #[test]
