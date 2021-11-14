@@ -63,7 +63,7 @@ fn function_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     ))
 }
 
-/// globalVariableDefinition <- "global" identifier "=" expression ";";
+/// globalVariableDefinition <- "global" identifier "=" expression;
 fn global_variable_definition(input: &str) -> IResult<&str, ast::TopLevel> {
     let (input, _) = tag("global")(input)?;
     let (input, _) = multispace1(input)?;
