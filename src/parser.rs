@@ -16,6 +16,7 @@ pub fn parse(input: &str) -> Result<ast::Program, ToysError> {
     match program(input).finish() {
         Ok((remain, program_ast)) => {
             if !remain.is_empty() {
+                dbg!(program_ast);
                 Err(ToysError::ParseError(format!(
                     "contains invalid characters: {}",
                     remain
