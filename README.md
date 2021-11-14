@@ -10,3 +10,30 @@
 - [ ] 文法の拡張
   - [x] `for`
   - [ ] ラベル引数
+
+## 実行方法
+
+### `cargo run` を使う
+
+```sh
+# ファイルを指定
+cargo run -- path/to/src.toys
+
+# ソースコードをオプションで渡す
+cargo run -- -e "define main() { println(1 + 2); }"
+```
+
+### 実行バイナリを使う
+
+```sh
+cargo build --release
+cd ./target/release/
+```
+
+```sh
+# ファイルを指定
+toys-rs path/to/src.toys
+
+# ソースコードをオプションで渡す
+toys-rs -e "define main() { println(1 + 2); }"
+```
